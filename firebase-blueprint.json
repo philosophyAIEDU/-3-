@@ -1,0 +1,28 @@
+{
+  "collections": {
+    "portfolio": {
+      "rules": {
+        "read": "true",
+        "write": "request.auth != null"
+      },
+      "fields": {
+        "title": "string",
+        "description": "string?",
+        "imageUrl": "string",
+        "importance": "number",
+        "createdAt": "timestamp"
+      }
+    },
+    "guestbook": {
+      "rules": {
+        "read": "true",
+        "write": "true"
+      },
+      "fields": {
+        "message": "string",
+        "author": "string",
+        "createdAt": "timestamp"
+      }
+    }
+  }
+}
