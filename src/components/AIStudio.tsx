@@ -138,7 +138,7 @@ export const AIStudio: React.FC = () => {
                   ]
                 }
               ],
-              config: {
+              generationConfig: {
                 responseModalities: ["IMAGE"],
                 imageConfig: {
                   aspectRatio: "1:1",
