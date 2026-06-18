@@ -32,20 +32,20 @@
   --color-outline: #1A1A1A;
   --color-outline-variant: #1A1A1A;
 
-  --font-headline-md: "Georgia", serif;
-  --font-body-md: "Helvetica Neue", Arial, sans-serif;
-  --font-display-lg: "Georgia", serif;
-  --font-body-lg: "Helvetica Neue", Arial, sans-serif;
-  --font-display-lg-mobile: "Georgia", serif;
-  --font-headline-sm: "Georgia", serif;
-  --font-label-caps: "Helvetica Neue", Arial, sans-serif;
-  --font-display-xl: "Georgia", serif;
+  --font-headline-md: "Playfair Display", "Georgia", serif;
+  --font-body-md: "Inter", "Helvetica Neue", Arial, sans-serif;
+  --font-display-lg: "Playfair Display", "Georgia", serif;
+  --font-body-lg: "Inter", "Helvetica Neue", Arial, sans-serif;
+  --font-display-lg-mobile: "Playfair Display", "Georgia", serif;
+  --font-headline-sm: "Playfair Display", "Georgia", serif;
+  --font-label-caps: "Inter", "Helvetica Neue", Arial, sans-serif;
+  --font-display-xl: "Playfair Display", "Georgia", serif;
 }
 
 body {
   background-color: var(--color-background);
   color: var(--color-on-background);
-  font-family: 'Helvetica Neue', Arial, sans-serif;
+  font-family: 'Inter', sans-serif;
   overflow-x: hidden;
 }
 
@@ -59,7 +59,7 @@ body {
 }
 
 h1, h2, h3, h4, h5, h6, .font-display-lg, .font-display-xl, .font-headline-md, .font-headline-sm {
-  font-family: 'Georgia', serif;
+  font-family: 'Playfair Display', 'Georgia', serif;
   font-style: italic;
   font-weight: 400;
 }

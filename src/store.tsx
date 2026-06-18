@@ -1,4 +1,6 @@
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { collection, onSnapshot, query, orderBy, addDoc, getDocs } from 'firebase/firestore';
+import { db } from './firebase';
 
 export interface PortfolioItem {
   id: string;
@@ -6,6 +8,7 @@ export interface PortfolioItem {
   altText: string;
   title: string;
   importance: number;
+  createdAt?: number;
 }
 
 export interface GuestbookEntry {
@@ -27,7 +30,8 @@ export interface AppState {
 interface AppContextType {
   state: AppState;
   setState: React.Dispatch<React.SetStateAction<AppState>>;
-  addGuestbookEntry: (entry: Omit<GuestbookEntry, 'id' | 'timestamp'>) => void;
+  addGuestbookEntry: (entry: Omit<GuestbookEntry, 'id' | 'timestamp'>) => Promise<void>;
+  addPortfolioItem: (item: Omit<PortfolioItem, 'id' | 'createdAt'>) => Promise<void>;
   setGeneratingAI: (isGenerating: boolean) => void;
   setAiImage: (url: string | null) => void;
   showToast: (message: string, isError?: boolean) => void;
@@ -35,44 +39,39 @@ interface AppContextType {
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
-const INITIAL_PORTFOLIO: PortfolioItem[] = [
+const INITIAL_PORTFOLIO: Omit<PortfolioItem, 'id'>[] = [
   {
-    id: "1",
     importance: 3,
-    title: "AI-생성 컨셉 #041",
-    altText: "Gold yuzu mousse",
-    imageUrl: "https://lh3.googleusercontent.com/aida-public/AB6AXuDJLZmpJ-FsN_QjejbVe6MnIt2E3eLTW32rDdTOyro67LSo32ICXYY_JVotNgEygaVY3k7LL5l5z9kcqwI4X8kCQz9iUx-8NrDCoCv5tkkZ_VK7a0Q410cc3KVAw2NYqOu7vcrBHnaG-EkJ_rAjf3al1lSz_FY809YoPtTeH1y9nL_RIdAcdu8YVb01gZsUk8ZydHMe5gWSuAVqqsshC_W4VsCSUVsIAbr5qwb7ZMccmwLrD2sgYUxCg1tKVMBjXkT3yKrCFEiNXVs"
+    title: "현대적 떡갈비 (Contemporary Korean Beef)",
+    altText: "고급 블랙 마늘 퓌레와 야생 버섯, 신선한 마이크로 허브를 곁들인 수비드 한우 떡갈비.",
+    imageUrl: "/images/signature_beef.png"
   },
   {
-    id: "2",
     importance: 2,
-    title: "AI-생성 컨셉 #082",
-    altText: "Molecular gastronomy coconut cream",
-    imageUrl: "https://lh3.googleusercontent.com/aida-public/AB6AXuC8-JC-1ekDJUD7zz07LXNuGD2SjTBtHSx6JYKLix8YUFKJ9-hdNZEVqJq2s4eQ4Z08w1o0VVuDIupD5fjed0raqGPmN2lyME9kWNnVlSUFtQS8q0F3COPEFR-ecNbA-eGNcQ3RuM365ewX8w496ReaXU0UPgEIPpHAj6OzqUiYHHsSmT1TtBK_8U3S6ZVX167Y5xpQgYdeSzvVxbbZIoNbPbEpLrGo72XggtcfhNzYD7h6r2ySkbfbbJ4yPnNJ9MrbEaLS5pyv08w"
+    title: "유자 폼을 곁들인 관자 구이 (Seared Scallop with Yuzu Foam)",
+    altText: "팬에 시어링한 관자 위에 상큼한 유자 에어(foam)와 바다 포도, 허브 오일 드롭으로 마감한 분자 요리.",
+    imageUrl: "/images/signature_scallop.png"
   },
   {
-    id: "3",
     importance: 1,
-    title: "AI-생성 컨셉 #109",
-    altText: "Futuristic tasting menu course",
-    imageUrl: "https://lh3.googleusercontent.com/aida-public/AB6AXuC37p34mv9JwjP0c610lgt6Rl8o6tJV7e5lGv04oW2H7BuUiLXBatn-Ci2TVSIcexMWL2V_rnWYKuV58sAbt38kVOIC5Ndg8bRdTvl50kB0vuqTX7Ao1kvVTiljDuU0m6kdR-fe0g8zJKjWA7agT2AYJ1HGMeACFnxD-nY_itr9dFAl2MejbywacrEhuJjD7HX2oWBrrgwMZCsMn_d90pWxh-wg97rUoziZOa70GjRAtCC0IrzxUqGHoHnBW5OmV0tVMLo0FRXW_Jw"
+    title: "루비 스피어 디저트 (Ruby Sphere Dessert)",
+    altText: "초콜릿 흙(soil) 위에 올린 투명한 루비 색상의 초콜릿 무스 구체와 식용 금박, 꽃잎 데코레이션.",
+    imageUrl: "/images/signature_dessert.png"
   }
 ];
 
-const INITIAL_GUESTBOOK: GuestbookEntry[] = [
+const INITIAL_GUESTBOOK: Omit<GuestbookEntry, 'id'>[] = [
   {
-    id: "g1",
     author: "Julian V.",
-    title: "미슐랭 비평가",
-    message: "\"AI 스튜디오가 '분자 노르딕' 스타일을 해석하는 방식은 놀라울 정도로 정확합니다. 질감 시뮬레이션은 차원이 다른 수준이네요.\"",
+    title: "미슐랭 가이드 비평가",
+    message: "\"셰프 강민우의 현대적 떡갈비는 전통과 분자 요리의 경계를 허무는 놀라운 완성도를 보여줍니다. 퓌레의 텍스처가 압권입니다.\"",
     timestamp: Date.now() - 86400000,
     avatarUrl: "https://lh3.googleusercontent.com/aida-public/AB6AXuCjAoCJSX0KhN8v-LQyJBdctQfjb77iQ32rf-hdHtSW24Pk45NF-EvH_w8z3FtVkN9-tdGEQqDcg3o96YEwRV3jdsCna9WfCeIS5Uc3cAbxNW5v7R9hEEvrftoj-bVqPiZt-TSSQwioJFdlJ1zTwsMPLeDQITs3vkzkMBdydIiaROGNUQwC8qwukXSH8cDkOCvpgQ4kUEi2pOEyrWKRE0IQdRsuKpDG-xhfy3ZmaquNng2tdaWrnkpW9MZl4eL8OHi-Fb6OpihzIbE"
   },
   {
-    id: "g2",
-    author: "Sarah K.",
-    title: "디자인 리드",
-    message: "\"UI 디자인의 걸작입니다. 어둡고 무드 있으며, 요리의 정수를 완벽하게 담아냈습니다. 진정한 미식 디지털 경험입니다.\"",
+    author: "김지선",
+    title: "푸드 칼럼니스트",
+    message: "\"유자 폼과 관자 구이의 조합은 입안에서 바다와 신선한 시트러스 향이 폭발하는 경험이었습니다. 시각과 미각을 동시에 사로잡네요.\"",
     timestamp: Date.now() - 172800000,
     avatarUrl: "https://lh3.googleusercontent.com/aida-public/AB6AXuAOkQMQE02ppltFC203gONYl0Q2kYyIaxciBRfK-IdbNCu8Zxr_ZNtvUwDFtioqxS6p__OmY4daddKy_AMDJhYII2Jb5tgfQyZvb5hcz4cyb6sH5bMyTXiBl3OH1g9qkdXLz2hyOwtYPptNonrtRQVYr6u4Q47kwtURvctRdyj1IAXYK0V9vditXgydQlRmAT7wy0E1D3pIIF7XNyaQESVJ5nxUpcmbsS_W_l_BoF72xw3GqsyRs9j2fNdrjnmKyDBQdo1WqCLHjGE"
   }
@@ -80,27 +79,113 @@ const INITIAL_GUESTBOOK: GuestbookEntry[] = [
 
 export const AppStateProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [state, setState] = useState<AppState>({
-    portfolio: INITIAL_PORTFOLIO,
-    guestbook: INITIAL_GUESTBOOK,
+    portfolio: [],
+    guestbook: [],
     isGeneratingAI: false,
     aiImageCache: null
   });
 
   const [toast, setToast] = useState<{ message: string, isError: boolean } | null>(null);
 
-  const addGuestbookEntry = (entry: Omit<GuestbookEntry, 'id' | 'timestamp'>) => {
-    setState(prev => {
-      const newEntry: GuestbookEntry = {
-        ...entry,
-        id: Math.random().toString(36).substring(7),
-        timestamp: Date.now()
-      };
-      
-      // Sort guestbook items descending by timestamp
-      const newGuestbook = [newEntry, ...prev.guestbook].sort((a, b) => b.timestamp - a.timestamp);
-      
-      return { ...prev, guestbook: newGuestbook };
+  // Firestore initialization checks and real-time subscription
+  useEffect(() => {
+    const initializeDatabase = async () => {
+      try {
+        const portfolioRef = collection(db, 'portfolio');
+        const portSnapshot = await getDocs(portfolioRef);
+        if (portSnapshot.empty) {
+          for (const item of INITIAL_PORTFOLIO) {
+            await addDoc(portfolioRef, {
+              ...item,
+              createdAt: Date.now()
+            });
+          }
+        }
+
+        const guestbookRef = collection(db, 'guestbook');
+        const guestSnapshot = await getDocs(guestbookRef);
+        if (guestSnapshot.empty) {
+          for (const item of INITIAL_GUESTBOOK) {
+            await addDoc(guestbookRef, item);
+          }
+        }
+      } catch (err) {
+        console.error("Error initializing Firestore collection defaults:", err);
+      }
+    };
+
+    initializeDatabase();
+
+    // Subscribe to guestbook (newest first)
+    const qGuestbook = query(collection(db, 'guestbook'), orderBy('timestamp', 'desc'));
+    const unsubscribeGuestbook = onSnapshot(qGuestbook, (snapshot) => {
+      const entries: GuestbookEntry[] = [];
+      snapshot.forEach((doc) => {
+        const data = doc.data();
+        entries.push({
+          id: doc.id,
+          author: data.author || '',
+          title: data.title || '',
+          message: data.message || '',
+          timestamp: data.timestamp || Date.now(),
+          avatarUrl: data.avatarUrl || ''
+        });
+      });
+      setState(prev => ({ ...prev, guestbook: entries }));
+    }, (error) => {
+      console.error("Guestbook subscription error:", error);
     });
+
+    // Subscribe to portfolio (highest importance first)
+    const qPortfolio = query(collection(db, 'portfolio'), orderBy('importance', 'desc'));
+    const unsubscribePortfolio = onSnapshot(qPortfolio, (snapshot) => {
+      const items: PortfolioItem[] = [];
+      snapshot.forEach((doc) => {
+        const data = doc.data();
+        items.push({
+          id: doc.id,
+          title: data.title || '',
+          altText: data.altText || '',
+          imageUrl: data.imageUrl || '',
+          importance: data.importance || 0,
+          createdAt: data.createdAt || Date.now()
+        });
+      });
+      setState(prev => ({ ...prev, portfolio: items }));
+    }, (error) => {
+      console.error("Portfolio subscription error:", error);
+    });
+
+    return () => {
+      unsubscribeGuestbook();
+      unsubscribePortfolio();
+    };
+  }, []);
+
+  const addGuestbookEntry = async (entry: Omit<GuestbookEntry, 'id' | 'timestamp'>) => {
+    try {
+      await addDoc(collection(db, 'guestbook'), {
+        ...entry,
+        timestamp: Date.now()
+      });
+      showToast('소중한 의견이 기록되었습니다.');
+    } catch (e) {
+      console.error(e);
+      showToast('오류가 발생했습니다. 다시 시도해주세요.', true);
+    }
+  };
+
+  const addPortfolioItem = async (item: Omit<PortfolioItem, 'id' | 'createdAt'>) => {
+    try {
+      await addDoc(collection(db, 'portfolio'), {
+        ...item,
+        createdAt: Date.now()
+      });
+      showToast('포트폴리오에 성공적으로 저장되었습니다.');
+    } catch (e) {
+      console.error(e);
+      showToast('포트폴리오 저장에 실패했습니다.', true);
+    }
   };
 
   const setGeneratingAI = (isGenerating: boolean) => {
@@ -118,11 +203,8 @@ export const AppStateProvider: React.FC<{ children: ReactNode }> = ({ children }
     }, 4000);
   };
 
-  // Portfolio items are sorted by importance descending
-  state.portfolio.sort((a, b) => b.importance - a.importance);
-
   return (
-    <AppContext.Provider value={{ state, setState, addGuestbookEntry, setGeneratingAI, setAiImage, showToast }}>
+    <AppContext.Provider value={{ state, setState, addGuestbookEntry, addPortfolioItem, setGeneratingAI, setAiImage, showToast }}>
       {children}
       {toast && (
         <div className={`fixed bottom-8 p-4 right-8 z-50 transform transition-transform border-4 border-outline bg-background ${toast.isError ? 'text-secondary' : 'text-on-surface'}`}>

@@ -7,6 +7,7 @@ import React from 'react';
 import { AppStateProvider } from './store';
 import { Header } from './components/Header';
 import { Hero } from './components/Hero';
+import { Career } from './components/Career';
 import { Gallery } from './components/Gallery';
 import { AIStudio } from './components/AIStudio';
 import { Guestbook } from './components/Guestbook';
@@ -19,6 +20,7 @@ export default function App() {
         <Header />
         <main>
           <Hero />
+          <Career />
           <Gallery />
           <AIStudio />
           <Guestbook />
