@@ -122,32 +122,72 @@ export const AIStudio: React.FC = () => {
       }
 
       try {
-        const response = await fetch('/api/generate-image', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({ 
-            prompt: modifiers,
-            apiKey: apiKey.trim() || undefined
-          })
-        });
+        let imageUrl = '';
+        if (apiKey.trim()) {
+          // Direct client-side call to Google Gemini API
+          const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-image:generateContent?key=${apiKey.trim()}`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              contents: [
+                {
+                  parts: [
+                    { text: modifiers }
+                  ]
+                }
+              ],
+              config: {
+                responseModalities: ["IMAGE"],
+                imageConfig: {
+                  aspectRatio: "1:1",
+                  imageSize: "1K"
+                }
+              }
+            })
+          });
 
-        if (!response.ok) {
-          const errData = await response.json();
-          throw new Error(errData.error || `HTTP ${response.status}`);
-        }
+          if (!response.ok) {
+            const errData = await response.json();
+            throw new Error(errData.error?.message || `API Error ${response.status}`);
+          }
 
-        const data = await response.json();
-        if (data.error) {
-          throw new Error(data.error);
+          const data = await response.json();
+          const base64Data = data.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+          if (!base64Data) {
+            throw new Error("구글 API 응답에서 이미지 데이터를 수신하지 못했습니다.");
+          }
+          imageUrl = `data:image/jpeg;base64,${base64Data}`;
+        } else {
+          // Fallback to Backend Local API call
+          const response = await fetch('/api/generate-image', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ 
+              prompt: modifiers
+            })
+          });
+
+          if (!response.ok) {
+            const errData = await response.json();
+            throw new Error(errData.error || `HTTP ${response.status}`);
+          }
+
+          const data = await response.json();
+          if (data.error) {
+            throw new Error(data.error);
+          }
+          imageUrl = data.imageUrl;
         }
 
         // Update the slot with generated image
         setGeneratedDishes(prev => 
           prev.map(item => 
             item.id === dish.id 
-              ? { ...item, url: data.imageUrl, prompt: modifiers, loading: false }
+              ? { ...item, url: imageUrl, prompt: modifiers, loading: false }
               : item
           )
         );
