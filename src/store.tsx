@@ -78,14 +78,28 @@ const INITIAL_GUESTBOOK: Omit<GuestbookEntry, 'id'>[] = [
 ];
 
 export const AppStateProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+  const [toast, setToast] = useState<{ message: string, isError: boolean } | null>(null);
+
+  const showToast = (message: string, isError = false) => {
+    setToast({ message, isError });
+    setTimeout(() => {
+      setToast(null);
+    }, 4000);
+  };
+
   const [state, setState] = useState<AppState>({
-    portfolio: [],
-    guestbook: [],
+    portfolio: INITIAL_PORTFOLIO.map((item, idx) => ({ 
+      ...item, 
+      id: `local-port-${idx}`, 
+      createdAt: Date.now() - idx * 1000 
+    })),
+    guestbook: INITIAL_GUESTBOOK.map((item, idx) => ({ 
+      ...item, 
+      id: `local-gb-${idx}` 
+    })),
     isGeneratingAI: false,
     aiImageCache: null
   });
-
-  const [toast, setToast] = useState<{ message: string, isError: boolean } | null>(null);
 
   // Firestore initialization checks and real-time subscription
   useEffect(() => {
@@ -134,6 +148,7 @@ export const AppStateProvider: React.FC<{ children: ReactNode }> = ({ children }
       setState(prev => ({ ...prev, guestbook: entries }));
     }, (error) => {
       console.error("Guestbook subscription error:", error);
+      showToast("소명록 데이터베이스를 동기화하지 못했습니다. 오프라인 모드로 자동 전환됩니다.", true);
     });
 
     // Subscribe to portfolio (highest importance first)
@@ -154,6 +169,7 @@ export const AppStateProvider: React.FC<{ children: ReactNode }> = ({ children }
       setState(prev => ({ ...prev, portfolio: items }));
     }, (error) => {
       console.error("Portfolio subscription error:", error);
+      showToast("시그니처 컬렉션 데이터베이스 동기화에 실패하여 로컬 데이터를 불러옵니다.", true);
     });
 
     return () => {
@@ -194,13 +210,6 @@ export const AppStateProvider: React.FC<{ children: ReactNode }> = ({ children }
 
   const setAiImage = (url: string | null) => {
     setState(prev => ({ ...prev, aiImageCache: url }));
-  };
-
-  const showToast = (message: string, isError = false) => {
-    setToast({ message, isError });
-    setTimeout(() => {
-      setToast(null);
-    }, 4000);
   };
 
   return (
