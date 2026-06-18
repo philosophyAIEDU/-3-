@@ -30,7 +30,7 @@ const TIMELINE_DATA: TimelineItem[] = [
     period: "2018 - 2020",
     role: "Culinary Arts Degree",
     organization: "Institut Paul Bocuse (폴 보퀴즈 요리학교, 프랑스)",
-    description: "세계 최고의 요리 명문 기관에서 정통 프렌치 클래식 퀴진과 모던 분자 미식 이론 및 조리 실습 과정을 우수 졸업하였습니다."
+    description: "세계 최고의 요리 명문 기관에서 정통 프렌치 클래식 퀴진과 현대 과학적 조리 이론 및 실습 과정을 우수 졸업하였습니다."
   },
   {
     period: "2017",
@@ -57,7 +57,7 @@ export const Career: React.FC = () => {
           </h2>
           <p className="font-body-lg text-body-lg text-on-surface mb-8 leading-relaxed font-bold">
             한국 전통 요리의 오랜 지혜인 발효와 숙성, 그리고 제철 식재료에 대한 존중을 기본으로 삼습니다. 
-            여기에 온도와 텍스처를 조작하는 현대 분자 가스트로노미 기법을 접목하여, 
+            여기에 과학적인 조리 기법을 접목해 식재료 본연의 맛과 현대적인 질감을 극대화하여, 
             접시 위에서 단순한 미각을 넘어 온몸의 감각이 일깨워지는 다이닝을 실천합니다.
           </p>
           
@@ -70,7 +70,7 @@ export const Career: React.FC = () => {
               </p>
               <p className="flex justify-between border-b border-outline/20 pb-2">
                 <span>전문 분야</span>
-                <span>컨템포러리 코리안 & 분자 미식</span>
+                <span>컨템포러리 코리안 & 현대 요리 과학</span>
               </p>
               <p className="flex justify-between">
                 <span>활동 지역</span>

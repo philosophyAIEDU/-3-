@@ -17,12 +17,12 @@ export const Hero: React.FC = () => {
           
           <h1 className="font-display-xl text-[3.5rem] md:text-[5.5rem] leading-[1.0] text-on-surface tracking-tighter mb-8 font-normal uppercase">
             현대 요리 미학과<br/>
-            <span className="text-secondary italic">분자 가스트로노미</span>
+            <span className="text-secondary italic">현대 요리 과학</span>
           </h1>
           
           <p className="font-body-lg text-lg md:text-xl text-on-surface font-semibold max-w-2xl mb-12 leading-relaxed">
-            전통 한식의 깊은 발효 맛 위에 현대 분자 미식의 혁신을 조화롭게 얹어냅니다. 
-            식재료 본연의 성질을 온전히 이해하고, 질감과 온도를 재창조하여 접시 위에 하나의 현대 예술적 캔버스를 펼칩니다.
+            전통 한식의 깊은 발효 맛 위에 현대 조리 과학의 혁신을 조화롭게 얹어냅니다. 
+            식재료 본연의 성질을 온전히 이해하고, 새로운 질감과 온도를 선보여 접시 위에 하나의 현대 예술적 캔버스를 펼칩니다.
           </p>
           
           <div className="flex flex-col sm:flex-row gap-4">

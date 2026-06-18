@@ -15,17 +15,18 @@ async function startServer() {
   // API Routes
   app.post("/api/generate-image", async (req, res) => {
     try {
-      const { prompt } = req.body;
+      const { prompt, apiKey } = req.body;
       if (!prompt) {
         return res.status(400).json({ error: "Prompt is required" });
       }
 
-      if (!process.env.GEMINI_API_KEY) {
-        return res.status(500).json({ error: "GEMINI_API_KEY is not configured" });
+      const finalApiKey = apiKey || process.env.GEMINI_API_KEY;
+      if (!finalApiKey) {
+        return res.status(400).json({ error: "Gemini API Key가 누락되었습니다. 화면 상단의 API 설정 카드에서 API 키를 입력해 주세요." });
       }
 
       const ai = new GoogleGenAI({ 
-        apiKey: process.env.GEMINI_API_KEY,
+        apiKey: finalApiKey,
         httpOptions: {
           headers: {
             'User-Agent': 'aistudio-build',
@@ -39,18 +40,21 @@ async function startServer() {
           parts: [{ text: prompt }]
         },
         config: {
+          responseModalities: ["IMAGE"],
           imageConfig: {
-            aspectRatio: "16:9",
-            imageSize: "1K" // Or 512px
+            aspectRatio: "1:1",
+            imageSize: "1K"
           }
         }
       });
 
       let base64Data = null;
-      for (const part of response.candidates[0].content.parts) {
-        if (part.inlineData) {
-          base64Data = part.inlineData.data;
-          break;
+      if (response?.candidates?.[0]?.content?.parts) {
+        for (const part of response.candidates[0].content.parts) {
+          if (part.inlineData) {
+            base64Data = part.inlineData.data;
+            break;
+          }
         }
       }
 
@@ -58,7 +62,7 @@ async function startServer() {
         const imageUrl = `data:image/jpeg;base64,${base64Data}`;
         res.json({ imageUrl });
       } else {
-        res.status(500).json({ error: "Failed to generate image" });
+        res.status(500).json({ error: "Failed to generate image from model response" });
       }
 
     } catch (error: any) {

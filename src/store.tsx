@@ -49,7 +49,7 @@ const INITIAL_PORTFOLIO: Omit<PortfolioItem, 'id'>[] = [
   {
     importance: 2,
     title: "유자 폼을 곁들인 관자 구이 (Seared Scallop with Yuzu Foam)",
-    altText: "팬에 시어링한 관자 위에 상큼한 유자 에어(foam)와 바다 포도, 허브 오일 드롭으로 마감한 분자 요리.",
+    altText: "팬에 시어링한 관자 위에 상큼한 유자 에어(foam)와 바다 포도, 허브 오일 드롭으로 마감한 현대식 요리.",
     imageUrl: "/images/signature_scallop.png"
   },
   {
@@ -64,7 +64,7 @@ const INITIAL_GUESTBOOK: Omit<GuestbookEntry, 'id'>[] = [
   {
     author: "Julian V.",
     title: "미슐랭 가이드 비평가",
-    message: "\"셰프 강민우의 현대적 떡갈비는 전통과 분자 요리의 경계를 허무는 놀라운 완성도를 보여줍니다. 퓌레의 텍스처가 압권입니다.\"",
+    message: "\"셰프 강민우의 현대적 떡갈비는 전통과 현대 조리 과학의 경계를 허무는 놀라운 완성도를 보여줍니다. 퓌레의 텍스처가 압권입니다.\"",
     timestamp: Date.now() - 86400000,
     avatarUrl: "https://lh3.googleusercontent.com/aida-public/AB6AXuCjAoCJSX0KhN8v-LQyJBdctQfjb77iQ32rf-hdHtSW24Pk45NF-EvH_w8z3FtVkN9-tdGEQqDcg3o96YEwRV3jdsCna9WfCeIS5Uc3cAbxNW5v7R9hEEvrftoj-bVqPiZt-TSSQwioJFdlJ1zTwsMPLeDQITs3vkzkMBdydIiaROGNUQwC8qwukXSH8cDkOCvpgQ4kUEi2pOEyrWKRE0IQdRsuKpDG-xhfy3ZmaquNng2tdaWrnkpW9MZl4eL8OHi-Fb6OpihzIbE"
   },
