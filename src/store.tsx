@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { collection, onSnapshot, query, orderBy, addDoc, getDocs } from 'firebase/firestore';
-import { db } from './firebase';
+import { collection, onSnapshot, query, orderBy, addDoc, getDocs, doc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { User, signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth';
+import { db, auth, googleProvider } from './firebase';
 
 export interface PortfolioItem {
   id: string;
@@ -25,6 +26,8 @@ export interface AppState {
   guestbook: GuestbookEntry[];
   isGeneratingAI: boolean;
   aiImageCache: string | null;
+  currentUser: User | null;
+  authLoading: boolean;
 }
 
 interface AppContextType {
@@ -32,9 +35,14 @@ interface AppContextType {
   setState: React.Dispatch<React.SetStateAction<AppState>>;
   addGuestbookEntry: (entry: Omit<GuestbookEntry, 'id' | 'timestamp'>) => Promise<void>;
   addPortfolioItem: (item: Omit<PortfolioItem, 'id' | 'createdAt'>) => Promise<void>;
+  updatePortfolioItem: (item: PortfolioItem) => Promise<void>;
+  deletePortfolioItem: (itemId: string) => Promise<void>;
+  deleteGuestbookEntry: (entryId: string) => Promise<void>;
   setGeneratingAI: (isGenerating: boolean) => void;
   setAiImage: (url: string | null) => void;
   showToast: (message: string, isError?: boolean) => void;
+  loginWithGoogle: () => Promise<void>;
+  logout: () => Promise<void>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -88,112 +96,171 @@ export const AppStateProvider: React.FC<{ children: ReactNode }> = ({ children }
   };
 
   const [state, setState] = useState<AppState>({
-    portfolio: INITIAL_PORTFOLIO.map((item, idx) => ({ 
-      ...item, 
-      id: `local-port-${idx}`, 
-      createdAt: Date.now() - idx * 1000 
-    })),
-    guestbook: INITIAL_GUESTBOOK.map((item, idx) => ({ 
-      ...item, 
-      id: `local-gb-${idx}` 
-    })),
+    portfolio: [],
+    guestbook: [],
     isGeneratingAI: false,
-    aiImageCache: null
+    aiImageCache: null,
+    currentUser: null,
+    authLoading: true
   });
 
-  // Firestore initialization checks and real-time subscription
+  // Track Firebase Auth state changes and set up Firestore listeners
   useEffect(() => {
-    const initializeDatabase = async () => {
-      try {
-        const portfolioRef = collection(db, 'portfolio');
-        const portSnapshot = await getDocs(portfolioRef);
-        if (portSnapshot.empty) {
-          for (const item of INITIAL_PORTFOLIO) {
-            await addDoc(portfolioRef, {
-              ...item,
-              createdAt: Date.now()
-            });
-          }
-        }
+    let unsubscribeGuestbook: (() => void) | null = null;
+    let unsubscribePortfolio: (() => void) | null = null;
 
-        const guestbookRef = collection(db, 'guestbook');
-        const guestSnapshot = await getDocs(guestbookRef);
-        if (guestSnapshot.empty) {
-          for (const item of INITIAL_GUESTBOOK) {
-            await addDoc(guestbookRef, item);
-          }
-        }
-      } catch (err) {
-        console.error("Error initializing Firestore collection defaults:", err);
+    const unsubscribeAuth = onAuthStateChanged(auth, async (user) => {
+      // 1. Unsubscribe from previous subscriptions if user changes
+      if (unsubscribeGuestbook) {
+        unsubscribeGuestbook();
+        unsubscribeGuestbook = null;
       }
-    };
+      if (unsubscribePortfolio) {
+        unsubscribePortfolio();
+        unsubscribePortfolio = null;
+      }
 
-    initializeDatabase();
+      if (user) {
+        setState(prev => ({
+          ...prev,
+          currentUser: user,
+          authLoading: false
+        }));
 
-    // Subscribe to guestbook (newest first)
-    const qGuestbook = query(collection(db, 'guestbook'), orderBy('timestamp', 'desc'));
-    const unsubscribeGuestbook = onSnapshot(qGuestbook, (snapshot) => {
-      const entries: GuestbookEntry[] = [];
-      snapshot.forEach((doc) => {
-        const data = doc.data();
-        entries.push({
-          id: doc.id,
-          author: data.author || '',
-          title: data.title || '',
-          message: data.message || '',
-          timestamp: data.timestamp || Date.now(),
-          avatarUrl: data.avatarUrl || ''
+        // 2. Seed default data for the user if their portfolio is empty
+        try {
+          const portfolioRef = collection(db, 'users', user.uid, 'portfolio');
+          const portSnapshot = await getDocs(portfolioRef);
+          if (portSnapshot.empty) {
+            for (const item of INITIAL_PORTFOLIO) {
+              await addDoc(portfolioRef, {
+                ...item,
+                createdAt: Date.now()
+              });
+            }
+          }
+
+          const guestbookRef = collection(db, 'users', user.uid, 'guestbook');
+          const guestSnapshot = await getDocs(guestbookRef);
+          if (guestSnapshot.empty) {
+            for (const item of INITIAL_GUESTBOOK) {
+              await addDoc(guestbookRef, {
+                ...item,
+                timestamp: Date.now()
+              });
+            }
+          }
+        } catch (err) {
+          console.error("Error seeding default data for user:", err);
+        }
+
+        // 3. Real-time subscription to user-specific guestbook (newest first)
+        const qGuestbook = query(collection(db, 'users', user.uid, 'guestbook'), orderBy('timestamp', 'desc'));
+        unsubscribeGuestbook = onSnapshot(qGuestbook, (snapshot) => {
+          const entries: GuestbookEntry[] = [];
+          snapshot.forEach((doc) => {
+            const data = doc.data();
+            entries.push({
+              id: doc.id,
+              author: data.author || '',
+              title: data.title || '',
+              message: data.message || '',
+              timestamp: data.timestamp || Date.now(),
+              avatarUrl: data.avatarUrl || ''
+            });
+          });
+          setState(prev => ({ ...prev, guestbook: entries }));
+        }, (error) => {
+          console.error("Guestbook subscription error:", error);
+          showToast("방명록 데이터베이스 동기화에 실패했습니다.", true);
         });
-      });
-      setState(prev => ({ ...prev, guestbook: entries }));
-    }, (error) => {
-      console.error("Guestbook subscription error:", error);
-      showToast("소명록 데이터베이스를 동기화하지 못했습니다. 오프라인 모드로 자동 전환됩니다.", true);
-    });
 
-    // Subscribe to portfolio (highest importance first)
-    const qPortfolio = query(collection(db, 'portfolio'), orderBy('importance', 'desc'));
-    const unsubscribePortfolio = onSnapshot(qPortfolio, (snapshot) => {
-      const items: PortfolioItem[] = [];
-      snapshot.forEach((doc) => {
-        const data = doc.data();
-        items.push({
-          id: doc.id,
-          title: data.title || '',
-          altText: data.altText || '',
-          imageUrl: data.imageUrl || '',
-          importance: data.importance || 0,
-          createdAt: data.createdAt || Date.now()
+        // 4. Real-time subscription to user-specific portfolio (highest importance first)
+        const qPortfolio = query(collection(db, 'users', user.uid, 'portfolio'), orderBy('importance', 'desc'));
+        unsubscribePortfolio = onSnapshot(qPortfolio, (snapshot) => {
+          const items: PortfolioItem[] = [];
+          snapshot.forEach((doc) => {
+            const data = doc.data();
+            items.push({
+              id: doc.id,
+              title: data.title || '',
+              altText: data.altText || '',
+              imageUrl: data.imageUrl || '',
+              importance: Number(data.importance) || 0,
+              createdAt: data.createdAt || Date.now()
+            });
+          });
+          setState(prev => ({ ...prev, portfolio: items }));
+        }, (error) => {
+          console.error("Portfolio subscription error:", error);
+          showToast("시그니처 컬렉션 동기화에 실패했습니다.", true);
         });
-      });
-      setState(prev => ({ ...prev, portfolio: items }));
-    }, (error) => {
-      console.error("Portfolio subscription error:", error);
-      showToast("시그니처 컬렉션 데이터베이스 동기화에 실패하여 로컬 데이터를 불러옵니다.", true);
+
+      } else {
+        // User logged out
+        setState(prev => ({
+          ...prev,
+          currentUser: null,
+          authLoading: false,
+          portfolio: [],
+          guestbook: []
+        }));
+      }
     });
 
     return () => {
-      unsubscribeGuestbook();
-      unsubscribePortfolio();
+      unsubscribeAuth();
+      if (unsubscribeGuestbook) unsubscribeGuestbook();
+      if (unsubscribePortfolio) unsubscribePortfolio();
     };
   }, []);
 
-  const addGuestbookEntry = async (entry: Omit<GuestbookEntry, 'id' | 'timestamp'>) => {
+  const loginWithGoogle = async () => {
     try {
-      await addDoc(collection(db, 'guestbook'), {
+      await signInWithPopup(auth, googleProvider);
+      showToast('구글 계정으로 성공적으로 로그인되었습니다.');
+    } catch (e: any) {
+      console.error(e);
+      showToast('로그인에 실패했습니다. 다시 시도해 주세요.', true);
+    }
+  };
+
+  const logout = async () => {
+    try {
+      await signOut(auth);
+      showToast('성공적으로 로그아웃되었습니다.');
+    } catch (e: any) {
+      console.error(e);
+      showToast('로그아웃에 실패했습니다.', true);
+    }
+  };
+
+  const addGuestbookEntry = async (entry: Omit<GuestbookEntry, 'id' | 'timestamp'>) => {
+    const user = auth.currentUser;
+    if (!user) {
+      showToast('로그인이 필요합니다.', true);
+      return;
+    }
+    try {
+      await addDoc(collection(db, 'users', user.uid, 'guestbook'), {
         ...entry,
         timestamp: Date.now()
       });
-      showToast('소중한 의견이 기록되었습니다.');
+      showToast('방명록에 소중한 리뷰가 기록되었습니다.');
     } catch (e) {
       console.error(e);
-      showToast('오류가 발생했습니다. 다시 시도해주세요.', true);
+      showToast('기록 저장 중 오류가 발생했습니다.', true);
     }
   };
 
   const addPortfolioItem = async (item: Omit<PortfolioItem, 'id' | 'createdAt'>) => {
+    const user = auth.currentUser;
+    if (!user) {
+      showToast('로그인이 필요합니다.', true);
+      return;
+    }
     try {
-      await addDoc(collection(db, 'portfolio'), {
+      await addDoc(collection(db, 'users', user.uid, 'portfolio'), {
         ...item,
         createdAt: Date.now()
       });
@@ -201,6 +268,58 @@ export const AppStateProvider: React.FC<{ children: ReactNode }> = ({ children }
     } catch (e) {
       console.error(e);
       showToast('포트폴리오 저장에 실패했습니다.', true);
+    }
+  };
+
+  const updatePortfolioItem = async (item: PortfolioItem) => {
+    const user = auth.currentUser;
+    if (!user) {
+      showToast('로그인이 필요합니다.', true);
+      return;
+    }
+    try {
+      const docRef = doc(db, 'users', user.uid, 'portfolio', item.id);
+      await updateDoc(docRef, {
+        title: item.title,
+        altText: item.altText,
+        importance: Number(item.importance)
+      });
+      showToast('성공적으로 요리 정보가 수정되었습니다.');
+    } catch (e) {
+      console.error(e);
+      showToast('수정에 실패했습니다.', true);
+    }
+  };
+
+  const deletePortfolioItem = async (itemId: string) => {
+    const user = auth.currentUser;
+    if (!user) {
+      showToast('로그인이 필요합니다.', true);
+      return;
+    }
+    try {
+      const docRef = doc(db, 'users', user.uid, 'portfolio', itemId);
+      await deleteDoc(docRef);
+      showToast('시그니처 요리가 포트폴리오에서 삭제되었습니다.');
+    } catch (e) {
+      console.error(e);
+      showToast('삭제에 실패했습니다.', true);
+    }
+  };
+
+  const deleteGuestbookEntry = async (entryId: string) => {
+    const user = auth.currentUser;
+    if (!user) {
+      showToast('로그인이 필요합니다.', true);
+      return;
+    }
+    try {
+      const docRef = doc(db, 'users', user.uid, 'guestbook', entryId);
+      await deleteDoc(docRef);
+      showToast('방명록 리뷰를 삭제했습니다.');
+    } catch (e) {
+      console.error(e);
+      showToast('삭제에 실패했습니다.', true);
     }
   };
 
@@ -213,13 +332,26 @@ export const AppStateProvider: React.FC<{ children: ReactNode }> = ({ children }
   };
 
   return (
-    <AppContext.Provider value={{ state, setState, addGuestbookEntry, addPortfolioItem, setGeneratingAI, setAiImage, showToast }}>
+    <AppContext.Provider value={{
+      state,
+      setState,
+      addGuestbookEntry,
+      addPortfolioItem,
+      updatePortfolioItem,
+      deletePortfolioItem,
+      deleteGuestbookEntry,
+      setGeneratingAI,
+      setAiImage,
+      showToast,
+      loginWithGoogle,
+      logout
+    }}>
       {children}
       {toast && (
         <div className={`fixed bottom-8 p-4 right-8 z-50 transform transition-transform border-4 border-outline bg-background ${toast.isError ? 'text-secondary' : 'text-on-surface'}`}>
           <div className="flex items-center gap-2">
             <span className="material-symbols-outlined font-bold">{toast.isError ? 'error' : 'check_circle'}</span>
-            <span className="font-label-caps font-bold uppercase tracking-widest">{toast.message}</span>
+            <span className="font-label-caps font-bold uppercase tracking-widest text-xs">{toast.message}</span>
           </div>
         </div>
       )}

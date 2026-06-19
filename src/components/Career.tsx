@@ -1,4 +1,6 @@
 import React from 'react';
+import { useAppState } from '../store';
+
 
 interface TimelineItem {
   period: string;
@@ -41,7 +43,11 @@ const TIMELINE_DATA: TimelineItem[] = [
 ];
 
 export const Career: React.FC = () => {
+  const { state } = useAppState();
+  const chefName = state.currentUser?.displayName || '강민우 (Minwoo Kang)';
+
   return (
+
     <section className="px-6 md:px-margin-desktop py-stack-lg max-w-7xl mx-auto border-b-2 border-outline bg-background" id="chef-career">
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-16">
         
@@ -66,7 +72,7 @@ export const Career: React.FC = () => {
             <div className="space-y-3 font-body-md text-on-surface font-semibold">
               <p className="flex justify-between border-b border-outline/20 pb-2">
                 <span>이름</span>
-                <span>강민우 (Minwoo Kang)</span>
+                <span>{chefName}</span>
               </p>
               <p className="flex justify-between border-b border-outline/20 pb-2">
                 <span>전문 분야</span>

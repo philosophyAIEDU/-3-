@@ -3,7 +3,7 @@ import { useAppState } from '../store';
 import { escapeHtml, formatKoreanDate } from '../utils';
 
 export const Guestbook: React.FC = () => {
-  const { state, addGuestbookEntry, showToast } = useAppState();
+  const { state, addGuestbookEntry, deleteGuestbookEntry, showToast } = useAppState();
   
   // Form states
   const [author, setAuthor] = useState('');
@@ -188,9 +188,22 @@ export const Guestbook: React.FC = () => {
                   <span className="font-label-caps text-[9px] uppercase bg-outline px-2 py-0.5 text-background font-bold self-start md:self-auto">
                     {entry.title}
                   </span>
-                  <span className="font-label-caps text-[10px] text-outline uppercase md:ml-auto font-semibold">
-                    {formatKoreanDate(entry.timestamp)}
-                  </span>
+                  <div className="md:ml-auto flex items-center gap-3">
+                    <span className="font-label-caps text-[10px] text-outline uppercase font-semibold">
+                      {formatKoreanDate(entry.timestamp)}
+                    </span>
+                    <button
+                      onClick={() => {
+                        if (confirm(`'${entry.author}'님의 방명록 글을 삭제하시겠습니까?`)) {
+                          deleteGuestbookEntry(entry.id);
+                        }
+                      }}
+                      className="text-secondary hover:text-outline transition-colors p-0.5 border border-transparent hover:border-outline bg-background flex items-center justify-center cursor-pointer"
+                      title="리뷰 삭제"
+                    >
+                      <span className="material-symbols-outlined text-[16px]">delete</span>
+                    </button>
+                  </div>
                 </div>
                 <p 
                   className="font-body-md text-on-surface/90 leading-relaxed font-semibold" 
