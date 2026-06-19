@@ -99,19 +99,21 @@ export const Gallery: React.FC = () => {
           <span className="font-label-caps text-xs uppercase text-outline opacity-60 font-bold">
             TOTAL DISHES: {state.portfolio.length}
           </span>
-          <button 
-            onClick={() => {
-              setDishTitle('');
-              setDishDescription('');
-              setDishImageUrl('');
-              setDishImportance(1);
-              setIsAddModalOpen(true);
-            }}
-            className="px-4 py-2 bg-secondary text-background border-2 border-secondary font-label-caps text-xs font-bold hover:bg-outline hover:text-background hover:border-outline transition-all cursor-pointer flex items-center gap-1.5 uppercase"
-          >
-            <span className="material-symbols-outlined text-[16px]">add</span>
-            새 요리 추가
-          </button>
+          {state.isAdmin && (
+            <button 
+              onClick={() => {
+                setDishTitle('');
+                setDishDescription('');
+                setDishImageUrl('');
+                setDishImportance(1);
+                setIsAddModalOpen(true);
+              }}
+              className="px-4 py-2 bg-secondary text-background border-2 border-secondary font-label-caps text-xs font-bold hover:bg-outline hover:text-background hover:border-outline transition-all cursor-pointer flex items-center gap-1.5 uppercase"
+            >
+              <span className="material-symbols-outlined text-[16px]">add</span>
+              새 요리 추가
+            </button>
+          )}
         </div>
       </div>
 
@@ -157,32 +159,34 @@ export const Gallery: React.FC = () => {
                 </p>
 
                 {/* Management Toolbar */}
-                <div className="flex gap-2 border-t-2 border-outline/20 pt-3 pb-1">
-                  <button
-                    onClick={() => {
-                      setSelectedDish(item);
-                      setDishTitle(item.title);
-                      setDishDescription(item.altText);
-                      setDishImportance(item.importance);
-                      setIsEditModalOpen(true);
-                    }}
-                    className="flex-1 py-1.5 px-2 border-2 border-outline text-on-surface bg-background text-[11px] font-bold hover:bg-outline hover:text-background transition-colors flex items-center justify-center gap-1 cursor-pointer"
-                  >
-                    <span className="material-symbols-outlined text-[14px]">edit</span>
-                    수정
-                  </button>
-                  <button
-                    onClick={() => {
-                      if (confirm(`'${item.title}' 요리를 삭제하시겠습니까?`)) {
-                        deletePortfolioItem(item.id);
-                      }
-                    }}
-                    className="py-1.5 px-3 border-2 border-secondary text-secondary bg-background text-[11px] font-bold hover:bg-secondary hover:text-background transition-colors flex items-center justify-center gap-1 cursor-pointer"
-                  >
-                    <span className="material-symbols-outlined text-[14px]">delete</span>
-                    삭제
-                  </button>
-                </div>
+                {state.isAdmin && (
+                  <div className="flex gap-2 border-t-2 border-outline/20 pt-3 pb-1">
+                    <button
+                      onClick={() => {
+                        setSelectedDish(item);
+                        setDishTitle(item.title);
+                        setDishDescription(item.altText);
+                        setDishImportance(item.importance);
+                        setIsEditModalOpen(true);
+                      }}
+                      className="flex-1 py-1.5 px-2 border-2 border-outline text-on-surface bg-background text-[11px] font-bold hover:bg-outline hover:text-background transition-colors flex items-center justify-center gap-1 cursor-pointer"
+                    >
+                      <span className="material-symbols-outlined text-[14px]">edit</span>
+                      수정
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (confirm(`'${item.title}' 요리를 삭제하시겠습니까?`)) {
+                          deletePortfolioItem(item.id);
+                        }
+                      }}
+                      className="py-1.5 px-3 border-2 border-secondary text-secondary bg-background text-[11px] font-bold hover:bg-secondary hover:text-background transition-colors flex items-center justify-center gap-1 cursor-pointer"
+                    >
+                      <span className="material-symbols-outlined text-[14px]">delete</span>
+                      삭제
+                    </button>
+                  </div>
+                )}
 
                 {/* Gastronomy indicators */}
                 <div className="flex justify-between items-center text-[10px] font-label-caps text-outline opacity-60 mt-2">

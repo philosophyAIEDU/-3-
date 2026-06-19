@@ -192,17 +192,19 @@ export const Guestbook: React.FC = () => {
                     <span className="font-label-caps text-[10px] text-outline uppercase font-semibold">
                       {formatKoreanDate(entry.timestamp)}
                     </span>
-                    <button
-                      onClick={() => {
-                        if (confirm(`'${entry.author}'님의 방명록 글을 삭제하시겠습니까?`)) {
-                          deleteGuestbookEntry(entry.id);
-                        }
-                      }}
-                      className="text-secondary hover:text-outline transition-colors p-0.5 border border-transparent hover:border-outline bg-background flex items-center justify-center cursor-pointer"
-                      title="리뷰 삭제"
-                    >
-                      <span className="material-symbols-outlined text-[16px]">delete</span>
-                    </button>
+                    {state.isAdmin && (
+                      <button
+                        onClick={() => {
+                          if (confirm(`'${entry.author}'님의 방명록 글을 삭제하시겠습니까?`)) {
+                            deleteGuestbookEntry(entry.id);
+                          }
+                        }}
+                        className="text-secondary hover:text-outline transition-colors p-0.5 border border-transparent hover:border-outline bg-background flex items-center justify-center cursor-pointer"
+                        title="리뷰 삭제"
+                      >
+                        <span className="material-symbols-outlined text-[16px]">delete</span>
+                      </button>
+                    )}
                   </div>
                 </div>
                 <p 

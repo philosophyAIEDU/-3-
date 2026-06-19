@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { collection, onSnapshot, query, orderBy, addDoc, getDocs, doc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { collection, onSnapshot, query, orderBy, addDoc, getDocs, doc, updateDoc, deleteDoc, writeBatch } from 'firebase/firestore';
 import { User, signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth';
 import { db, auth, googleProvider } from './firebase';
 
@@ -28,6 +28,7 @@ export interface AppState {
   aiImageCache: string | null;
   currentUser: User | null;
   authLoading: boolean;
+  isAdmin: boolean;
 }
 
 interface AppContextType {
@@ -101,7 +102,8 @@ export const AppStateProvider: React.FC<{ children: ReactNode }> = ({ children }
     isGeneratingAI: false,
     aiImageCache: null,
     currentUser: null,
-    authLoading: true
+    authLoading: true,
+    isAdmin: false
   });
 
   // Track Firebase Auth state changes and set up Firestore listeners
@@ -121,34 +123,44 @@ export const AppStateProvider: React.FC<{ children: ReactNode }> = ({ children }
       }
 
       if (user) {
+        // Designate admin based on email
+        const isAdminUser = user.email === 'warmcomfortforyou@gmail.com';
+        
         setState(prev => ({
           ...prev,
           currentUser: user,
-          authLoading: false
+          authLoading: false,
+          isAdmin: isAdminUser
         }));
 
-        // 2. Seed default data for the user if their portfolio is empty
+        // 2. Seed default data for the user atomically using batch writes if empty
         try {
           const portfolioRef = collection(db, 'users', user.uid, 'portfolio');
           const portSnapshot = await getDocs(portfolioRef);
           if (portSnapshot.empty) {
-            for (const item of INITIAL_PORTFOLIO) {
-              await addDoc(portfolioRef, {
+            const batch = writeBatch(db);
+            INITIAL_PORTFOLIO.forEach((item) => {
+              const newDocRef = doc(portfolioRef);
+              batch.set(newDocRef, {
                 ...item,
                 createdAt: Date.now()
               });
-            }
+            });
+            await batch.commit();
           }
 
           const guestbookRef = collection(db, 'users', user.uid, 'guestbook');
           const guestSnapshot = await getDocs(guestbookRef);
           if (guestSnapshot.empty) {
-            for (const item of INITIAL_GUESTBOOK) {
-              await addDoc(guestbookRef, {
+            const batch = writeBatch(db);
+            INITIAL_GUESTBOOK.forEach((item) => {
+              const newDocRef = doc(guestbookRef);
+              batch.set(newDocRef, {
                 ...item,
                 timestamp: Date.now()
               });
-            }
+            });
+            await batch.commit();
           }
         } catch (err) {
           console.error("Error seeding default data for user:", err);
@@ -203,7 +215,8 @@ export const AppStateProvider: React.FC<{ children: ReactNode }> = ({ children }
           currentUser: null,
           authLoading: false,
           portfolio: [],
-          guestbook: []
+          guestbook: [],
+          isAdmin: false
         }));
       }
     });
@@ -259,6 +272,10 @@ export const AppStateProvider: React.FC<{ children: ReactNode }> = ({ children }
       showToast('로그인이 필요합니다.', true);
       return;
     }
+    if (user.email !== 'warmcomfortforyou@gmail.com') {
+      showToast('관리자 권한이 없습니다. (warmcomfortforyou@gmail.com 전용)', true);
+      return;
+    }
     try {
       await addDoc(collection(db, 'users', user.uid, 'portfolio'), {
         ...item,
@@ -275,6 +292,10 @@ export const AppStateProvider: React.FC<{ children: ReactNode }> = ({ children }
     const user = auth.currentUser;
     if (!user) {
       showToast('로그인이 필요합니다.', true);
+      return;
+    }
+    if (user.email !== 'warmcomfortforyou@gmail.com') {
+      showToast('관리자 권한이 없습니다.', true);
       return;
     }
     try {
@@ -297,6 +318,10 @@ export const AppStateProvider: React.FC<{ children: ReactNode }> = ({ children }
       showToast('로그인이 필요합니다.', true);
       return;
     }
+    if (user.email !== 'warmcomfortforyou@gmail.com') {
+      showToast('관리자 권한이 없습니다.', true);
+      return;
+    }
     try {
       const docRef = doc(db, 'users', user.uid, 'portfolio', itemId);
       await deleteDoc(docRef);
@@ -311,6 +336,10 @@ export const AppStateProvider: React.FC<{ children: ReactNode }> = ({ children }
     const user = auth.currentUser;
     if (!user) {
       showToast('로그인이 필요합니다.', true);
+      return;
+    }
+    if (user.email !== 'warmcomfortforyou@gmail.com') {
+      showToast('관리자 권한이 없습니다.', true);
       return;
     }
     try {

@@ -4,7 +4,7 @@ import { useAppState } from '../store';
 export const Hero: React.FC = () => {
   const { state } = useAppState();
   const chefName = state.currentUser?.displayName || 'Minwoo Kang';
-  const chefPhoto = state.currentUser?.photoURL || '/images/chef_portrait.png';
+  const chefPhoto = '/images/chef_portrait.png';
 
   return (
     <section id="hero" className="min-h-screen flex items-center pt-28 pb-16 px-6 md:px-margin-desktop relative overflow-hidden border-b-2 border-outline bg-background">
